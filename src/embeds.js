@@ -79,8 +79,9 @@ function buildProfileEmbed(player, character, runs) {
 
   if (runs.length > 0) {
     const runsText = runs.slice(0, 5).map(r => {
-      const icon = r.timed ? '✅' : '❌';
-      return `${icon} [+${r.level}] **${r.dungeon}** — ${r.duration}`;
+      const icon  = r.timed ? '✅' : '❌';
+      const level = r.level ?? '?';
+      return `${icon} [+${level}] **${r.dungeon}** — ${r.duration}`;
     }).join('\n');
     embed.addFields({ name: '🔑 5 derniers runs', value: runsText, inline: false });
   }

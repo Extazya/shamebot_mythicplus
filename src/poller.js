@@ -47,7 +47,7 @@ async function _doCheck(client) {
       // Première initialisation : stocker les runs actuels sans notifier
       if (knownIds.length === 0) {
         if (runs.length > 0) setLastRunIds(playerKey, runs.map(r => r.url));
-        continue;
+        continue; // pas de sleep : pas d'appel réseau coûteux à espacer
       }
 
       const newRuns = runs.filter(r => !knownIds.includes(r.url));
@@ -69,8 +69,8 @@ async function _doCheck(client) {
       console.error(`Erreur lors de la récupération de ${player.name} (${player.realm}) :`, err.message);
     }
 
-    // Petite pause entre chaque joueur pour ne pas surcharger l'API
-    await sleep(1000);
+    // Pause entre chaque joueur pour espacer les appels API
+    await sleep(1500);
   }
 }
 

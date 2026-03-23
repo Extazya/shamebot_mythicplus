@@ -29,10 +29,10 @@ module.exports = {
     )
     .addIntegerOption(opt =>
       opt.setName('nombre')
-        .setDescription('Nombre de runs à afficher (1-10, défaut: 5)')
+        .setDescription('Nombre de runs à afficher (1-5, défaut: 5)')
         .setRequired(false)
         .setMinValue(1)
-        .setMaxValue(10)
+        .setMaxValue(5)
     ),
 
   async execute(interaction) {
@@ -66,8 +66,9 @@ module.exports = {
     const profileEmbed = buildProfileEmbed({ region, realm, name }, character, formattedRuns);
     await interaction.editReply({ embeds: [profileEmbed] });
 
-    // Puis chaque run dans un embed séparé
-    for (const run of formattedRuns) {
+    // Puis chaque run dans un embed séparé (max 5 pour rester sous le rate limit Discord)
+    const runsToShow = formattedRuns.slice(0, 5);
+    for (const run of runsToShow) {
       const runEmbed = buildRunEmbed({ region, realm, name }, run);
       await interaction.followUp({ embeds: [runEmbed] });
     }

@@ -1,17 +1,35 @@
 const https = require('https');
+const { acquireToken } = require('./ratelimiter');
 
 const BASE_URL = 'https://raider.io/api/v1';
 
 /**
- * Appel générique à l'API Raider.io
+ * Appel générique à l'API Raider.io (avec rate limiting)
  */
-function apiGet(urlPath) {
+async function apiGet(urlPath) {
+  await acquireToken();
+  return _httpGet(urlPath);
+}
+
+function _httpGet(urlPath, retries = 2) {
   return new Promise((resolve, reject) => {
     const url = `${BASE_URL}${urlPath}`;
     const req = https.get(url, { headers: { 'User-Agent': 'WoW-MPlus-Discord-Bot/1.0' } }, (res) => {
       let data = '';
       res.on('data', chunk => (data += chunk));
       res.on('end', () => {
+        // 429 : rate limit côté serveur — attendre et réessayer
+        if (res.statusCode === 429) {
+          const retryAfter = parseInt(res.headers['retry-after'] || '5', 10) * 1000;
+          if (retries > 0) {
+            console.warn(`⚠️  429 Raider.io, retry dans ${retryAfter / 1000}s...`);
+            setTimeout(() => _httpGet(urlPath, retries - 1).then(resolve).catch(reject), retryAfter);
+          } else {
+            reject(new Error('Rate limit Raider.io — réessayez dans quelques instants'));
+          }
+          return;
+        }
+
         try {
           const parsed = JSON.parse(data);
           if (res.statusCode !== 200) {
@@ -44,7 +62,6 @@ async function getCharacterProfile(region, realm, name) {
   const fields = [
     'mythic_plus_recent_runs',
     'mythic_plus_scores_by_season:current',
-    'mythic_plus_best_runs',
   ].join(',');
 
   const realmEncoded = encodeURIComponent(realm.toLowerCase());
@@ -95,7 +112,6 @@ function formatRun(run) {
     : '—';
 
   return {
-    id: run.url,
     dungeon: run.dungeon || 'Donjon inconnu',
     level: run.mythic_level,
     timed,
