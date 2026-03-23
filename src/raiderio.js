@@ -5,10 +5,10 @@ const BASE_URL = 'https://raider.io/api/v1';
 /**
  * Appel générique à l'API Raider.io
  */
-function apiGet(path) {
+function apiGet(urlPath) {
   return new Promise((resolve, reject) => {
-    const url = `${BASE_URL}${path}`;
-    https.get(url, { headers: { 'User-Agent': 'WoW-MPlus-Discord-Bot/1.0' } }, (res) => {
+    const url = `${BASE_URL}${urlPath}`;
+    const req = https.get(url, { headers: { 'User-Agent': 'WoW-MPlus-Discord-Bot/1.0' } }, (res) => {
       let data = '';
       res.on('data', chunk => (data += chunk));
       res.on('end', () => {
@@ -23,7 +23,14 @@ function apiGet(path) {
           reject(new Error('Réponse invalide de Raider.io'));
         }
       });
-    }).on('error', reject);
+    });
+
+    // Timeout de 10 secondes
+    req.setTimeout(10_000, () => {
+      req.destroy(new Error('Timeout Raider.io (10s)'));
+    });
+
+    req.on('error', reject);
   });
 }
 
@@ -64,6 +71,7 @@ async function getRecentRuns(region, realm, name) {
  * Formate la durée en mm:ss
  */
 function formatDuration(ms) {
+  if (!ms || isNaN(ms)) return '—';
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -78,23 +86,23 @@ function formatRun(run) {
   const upgradeStr = run.num_chests > 0 ? `+${run.num_chests}` : 'Dépassé';
   const duration = formatDuration(run.clear_time_ms);
   const par = formatDuration(run.par_time_ms);
-  const date = new Date(run.completed_at).toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const rawDate = run.completed_at ? new Date(run.completed_at) : null;
+  const date = rawDate && !isNaN(rawDate)
+    ? rawDate.toLocaleDateString('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : '—';
 
   return {
     id: run.url,
-    dungeon: run.dungeon,
+    dungeon: run.dungeon || 'Donjon inconnu',
     level: run.mythic_level,
     timed,
     upgrade: upgradeStr,
     duration,
     par,
-    score: run.score,
+    score: run.score ?? 0,
     date,
     url: run.url,
     affixes: run.affixes?.map(a => a.name) || [],

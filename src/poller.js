@@ -3,12 +3,27 @@ const { getRecentRuns, formatRun } = require('./raiderio');
 const { buildRunEmbed } = require('./embeds');
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+let isPolling = false;
 
 /**
  * Vérifie les nouvelles runs pour tous les joueurs suivis
  * et envoie les nouvelles dans le canal configuré.
  */
 async function checkAllPlayers(client) {
+  if (isPolling) {
+    console.log('⚠️  Poll déjà en cours, skip.');
+    return;
+  }
+  isPolling = true;
+
+  try {
+    await _doCheck(client);
+  } finally {
+    isPolling = false;
+  }
+}
+
+async function _doCheck(client) {
   const channelId = getChannel();
   if (!channelId) return;
 
@@ -29,6 +44,12 @@ async function checkAllPlayers(client) {
       const { runs } = await getRecentRuns(player.region, player.realm, player.name);
       const knownIds = getLastRunIds(playerKey);
 
+      // Première initialisation : stocker les runs actuels sans notifier
+      if (knownIds.length === 0) {
+        if (runs.length > 0) setLastRunIds(playerKey, runs.map(r => r.url));
+        continue;
+      }
+
       const newRuns = runs.filter(r => !knownIds.includes(r.url));
 
       if (newRuns.length > 0) {
@@ -41,13 +62,7 @@ async function checkAllPlayers(client) {
         }
 
         // Mettre à jour les IDs connus (garder les 50 derniers)
-        const allIds = [...runs.map(r => r.url)];
-        setLastRunIds(playerKey, allIds.slice(0, 50));
-      }
-
-      // Première initialisation : on stocke sans notifier
-      if (knownIds.length === 0 && runs.length > 0) {
-        setLastRunIds(playerKey, runs.map(r => r.url));
+        setLastRunIds(playerKey, runs.map(r => r.url).slice(0, 50));
       }
 
     } catch (err) {

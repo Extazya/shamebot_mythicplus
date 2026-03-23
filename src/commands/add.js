@@ -1,8 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { addPlayer } = require('../db');
+const { addPlayer, setLastRunIds } = require('../db');
 const { getCharacterProfile, formatRun } = require('../raiderio');
 const { buildProfileEmbed } = require('../embeds');
-const { setLastRunIds } = require('../db');
 
 module.exports = {
   data: new SlashCommandBuilder()

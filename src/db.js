@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, '../../data/db.json');
+const DB_PATH = path.join(__dirname, '../data/db.json');
 
 function loadDB() {
   if (!fs.existsSync(DB_PATH)) {
@@ -9,12 +9,23 @@ function loadDB() {
     saveDB(initial);
     return initial;
   }
-  return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  } catch (e) {
+    console.error('⚠️  db.json corrompu, réinitialisation :', e.message);
+    const initial = { players: [], channelId: null, lastRunIds: {} };
+    saveDB(initial);
+    return initial;
+  }
 }
 
 function saveDB(data) {
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+  const dir = path.dirname(DB_PATH);
+  fs.mkdirSync(dir, { recursive: true });
+  // Écriture atomique : on écrit dans un fichier temporaire puis on renomme
+  const tmp = DB_PATH + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+  fs.renameSync(tmp, DB_PATH);
 }
 
 function getPlayers() {

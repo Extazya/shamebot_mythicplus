@@ -4,6 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const { startPolling } = require('./poller');
 
+// Validation des variables d'environnement
+const missing = ['DISCORD_TOKEN'].filter(k => !process.env[k]);
+if (missing.length > 0) {
+  console.error(`❌ Variables manquantes dans .env : ${missing.join(', ')}`);
+  process.exit(1);
+}
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });

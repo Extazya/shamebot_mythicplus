@@ -24,25 +24,28 @@ function buildRunEmbed(player, run) {
   const timedEmoji = run.timed ? '✅' : '❌';
   const timedLabel = run.timed ? `**DANS LES TEMPS** (${run.upgrade})` : '**HORS TEMPS**';
   const color = run.timed ? 0x57f287 : 0xed4245;
+  const level = run.level ?? '?';
 
   const embed = new EmbedBuilder()
     .setColor(color)
-    .setTitle(`${timedEmoji} [+${run.level}] ${run.dungeon}`)
-    .setURL(run.url)
+    .setTitle(`${timedEmoji} [+${level}] ${run.dungeon}`)
     .setAuthor({
       name: `${player.name} — ${player.realm} (${player.region.toUpperCase()})`,
       url: `https://raider.io/characters/${player.region}/${encodeURIComponent(player.realm)}/${player.name}`,
     })
     .addFields(
-      { name: '🎯 Résultat',   value: timedLabel,          inline: true },
-      { name: '⏱️ Durée',      value: run.duration,        inline: true },
-      { name: '⏳ Par Time',   value: run.par,             inline: true },
-      { name: '🔑 Niveau',     value: `+${run.level}`,     inline: true },
-      { name: '⭐ Score',      value: `${run.score.toFixed(1)}`, inline: true },
-      { name: '📅 Date',       value: run.date,            inline: true },
+      { name: '🎯 Résultat',   value: timedLabel,                    inline: true },
+      { name: '⏱️ Durée',      value: run.duration,                  inline: true },
+      { name: '⏳ Par Time',   value: run.par,                       inline: true },
+      { name: '🔑 Niveau',     value: `+${level}`,                   inline: true },
+      { name: '⭐ Score',      value: run.score.toFixed(1),          inline: true },
+      { name: '📅 Date',       value: run.date,                      inline: true },
     )
     .setFooter({ text: 'Raider.io Bot • Mythic+' })
     .setTimestamp();
+
+  // URL optionnelle — Discord.js rejette null/undefined
+  if (run.url) embed.setURL(run.url);
 
   if (run.affixes.length > 0) {
     embed.addFields({ name: '🌀 Affixes', value: run.affixes.join(', '), inline: false });
@@ -60,16 +63,19 @@ function buildProfileEmbed(player, character, runs) {
 
   const embed = new EmbedBuilder()
     .setColor(color)
-    .setTitle(`📊 Profil M+ — ${character.name}`)
+    .setTitle(`📊 Profil M+ — ${character.name || player.name}`)
     .setURL(`https://raider.io/characters/${player.region}/${encodeURIComponent(player.realm)}/${player.name}`)
-    .setThumbnail(character.thumbnail_url)
     .addFields(
-      { name: '🌍 Région / Serveur', value: `${player.region.toUpperCase()} — ${character.realm}`, inline: true },
-      { name: '⚔️ Classe / Spec',   value: `${character.active_spec_name || ''} ${character.class}`, inline: true },
+      { name: '🌍 Région / Serveur', value: `${player.region.toUpperCase()} — ${character.realm || player.realm}`, inline: true },
+      { name: '⚔️ Classe / Spec',   value: [character.active_spec_name, character.class].filter(Boolean).join(' ') || 'Inconnu', inline: true },
       { name: '⭐ Score M+',        value: `**${score.toFixed(0)}**`, inline: true },
     )
     .setFooter({ text: 'Raider.io Bot • Mythic+' })
     .setTimestamp();
+
+  if (character.thumbnail_url) {
+    embed.setThumbnail(character.thumbnail_url);
+  }
 
   if (runs.length > 0) {
     const runsText = runs.slice(0, 5).map(r => {
@@ -89,16 +95,29 @@ function buildPlayerListEmbed(players) {
   const embed = new EmbedBuilder()
     .setColor(0x5865f2)
     .setTitle('👥 Joueurs suivis')
-    .setFooter({ text: 'Raider.io Bot • Mythic+' })
     .setTimestamp();
 
   if (players.length === 0) {
     embed.setDescription('Aucun joueur suivi. Utilisez `/add` pour en ajouter.');
+    embed.setFooter({ text: 'Raider.io Bot • Mythic+' });
   } else {
-    const list = players.map((p, i) =>
+    const lines = players.map((p, i) =>
       `\`${i + 1}.\` **${p.name}** — ${p.realm} (${p.region.toUpperCase()})`
-    ).join('\n');
-    embed.setDescription(list);
+    );
+
+    // Limite Discord : 4096 chars pour description
+    let description = '';
+    let shown = 0;
+    for (const line of lines) {
+      if ((description + line + '\n').length > 3900) {
+        description += `\n*… et ${players.length - shown} autre(s) non affichés*`;
+        break;
+      }
+      description += line + '\n';
+      shown++;
+    }
+
+    embed.setDescription(description.trim());
     embed.setFooter({ text: `${players.length} joueur(s) suivi(s) • Raider.io Bot` });
   }
 
