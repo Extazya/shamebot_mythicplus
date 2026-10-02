@@ -1,80 +1,80 @@
-const https = require('https');
 const { acquireToken } = require('./ratelimiter');
 
 const BASE_URL = 'https://raider.io/api/v1';
+const TIMEOUT_MS = 10_000;
+const MAX_RETRIES = 2;
+const DEFAULT_RETRY_AFTER_S = 5;
 
-/**
- * Appel générique à l'API Raider.io (avec rate limiting)
- */
+class RaiderIOError extends Error {
+  constructor(message, status = null) {
+    super(message);
+    this.name = 'RaiderIOError';
+    this.status = status;
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function retryDelayMs(res) {
+  const header = Number.parseInt(res.headers.get('retry-after') ?? '', 10);
+  return (Number.isNaN(header) ? DEFAULT_RETRY_AFTER_S : header) * 1000;
+}
+
 async function apiGet(urlPath) {
-  await acquireToken();
-  return _httpGet(urlPath);
-}
+  for (let attempt = 0; ; attempt++) {
+    // Retries consume a token too, so a 429 storm cannot bypass the limiter
+    await acquireToken();
 
-function _httpGet(urlPath, retries = 2) {
-  return new Promise((resolve, reject) => {
-    const url = `${BASE_URL}${urlPath}`;
-    const req = https.get(url, { headers: { 'User-Agent': 'WoW-MPlus-Discord-Bot/1.0' } }, (res) => {
-      let data = '';
-      res.on('data', chunk => (data += chunk));
-      res.on('end', () => {
-        // 429 : rate limit côté serveur — attendre et réessayer
-        if (res.statusCode === 429) {
-          const retryAfter = parseInt(res.headers['retry-after'] || '5', 10) * 1000;
-          if (retries > 0) {
-            console.warn(`⚠️  429 Raider.io, retry dans ${retryAfter / 1000}s...`);
-            setTimeout(() => _httpGet(urlPath, retries - 1).then(resolve).catch(reject), retryAfter);
-          } else {
-            reject(new Error('Rate limit Raider.io — réessayez dans quelques instants'));
-          }
-          return;
-        }
-
-        try {
-          const parsed = JSON.parse(data);
-          if (res.statusCode !== 200) {
-            reject(new Error(parsed.message || `HTTP ${res.statusCode}`));
-          } else {
-            resolve(parsed);
-          }
-        } catch (e) {
-          reject(new Error('Réponse invalide de Raider.io'));
-        }
+    let res;
+    try {
+      res = await fetch(`${BASE_URL}${urlPath}`, {
+        headers: { 'User-Agent': 'WoW-MPlus-Discord-Bot/2.0' },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
       });
-    });
+    } catch (err) {
+      if (err.name === 'TimeoutError') throw new RaiderIOError(`Timeout Raider.io (${TIMEOUT_MS / 1000}s)`);
+      throw new RaiderIOError(`Raider.io injoignable : ${err.message}`);
+    }
 
-    // Timeout de 10 secondes
-    req.setTimeout(10_000, () => {
-      req.destroy(new Error('Timeout Raider.io (10s)'));
-    });
+    if ((res.status === 429 || res.status === 503) && attempt < MAX_RETRIES) {
+      const delay = retryDelayMs(res);
+      console.warn(`⚠️  HTTP ${res.status} Raider.io, nouvel essai dans ${delay / 1000}s...`);
+      await sleep(delay);
+      continue;
+    }
 
-    req.on('error', reject);
-  });
+    const body = await res.text();
+    let parsed = null;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      // Error pages (502, Cloudflare...) are HTML; the status is what matters then
+    }
+
+    if (!res.ok) {
+      if (res.status === 429) throw new RaiderIOError('Rate limit Raider.io — réessayez dans quelques instants', 429);
+      throw new RaiderIOError(parsed?.message || `HTTP ${res.status}`, res.status);
+    }
+    if (parsed === null) throw new RaiderIOError('Réponse invalide de Raider.io', res.status);
+    return parsed;
+  }
 }
 
 /**
- * Récupère le profil d'un personnage avec ses runs récents M+
- * @param {string} region - us, eu, kr, tw
- * @param {string} realm  - nom du serveur (ex: "hyjal")
- * @param {string} name   - nom du personnage
+ * Raider.io accepts the realm display name as well as its slug.
  */
 async function getCharacterProfile(region, realm, name) {
-  const fields = [
-    'mythic_plus_recent_runs',
-    'mythic_plus_scores_by_season:current',
-  ].join(',');
-
-  const realmEncoded = encodeURIComponent(realm.toLowerCase());
-  const nameEncoded = encodeURIComponent(name.toLowerCase());
-
-  return apiGet(
-    `/characters/profile?region=${region}&realm=${realmEncoded}&name=${nameEncoded}&fields=${fields}`
-  );
+  const params = new URLSearchParams({
+    region,
+    realm,
+    name,
+    fields: 'mythic_plus_recent_runs,mythic_plus_scores_by_season:current',
+  });
+  return apiGet(`/characters/profile?${params}`);
 }
 
-/**
- * Récupère uniquement les runs récents M+ d'un personnage
- */
 async function getRecentRuns(region, realm, name) {
   const profile = await getCharacterProfile(region, realm, name);
   return {
@@ -85,44 +85,68 @@ async function getRecentRuns(region, realm, name) {
 }
 
 /**
- * Formate la durée en mm:ss
+ * Stable identifier of a run. The URL is kept first so ids stored by v1 stay valid.
  */
+function runId(run) {
+  if (run.url) return run.url;
+  if (run.keystone_run_id) return `run-${run.keystone_run_id}`;
+  return `${run.dungeon}|${run.mythic_level}|${run.completed_at}`;
+}
+
+function keystoneUpgrades(run) {
+  // The API replaced `num_chests` with `num_keystone_upgrades`; accept both
+  const upgrades = run.num_keystone_upgrades ?? run.num_chests;
+  return typeof upgrades === 'number' ? upgrades : null;
+}
+
+function isTimed(run) {
+  const upgrades = keystoneUpgrades(run);
+  if (upgrades !== null) return upgrades > 0;
+  if (run.clear_time_ms && run.par_time_ms) return run.clear_time_ms <= run.par_time_ms;
+  return false;
+}
+
 function formatDuration(ms) {
-  if (!ms || isNaN(ms)) return '—';
+  if (!ms || Number.isNaN(ms)) return '—';
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}m${seconds.toString().padStart(2, '0')}s`;
 }
 
-/**
- * Formate un run M+ en objet lisible
- */
+function formatDate(isoDate) {
+  const date = isoDate ? new Date(isoDate) : null;
+  if (!date || Number.isNaN(date.getTime())) return '—';
+  // Discord timestamp markup: rendered in each reader's own timezone
+  return `<t:${Math.floor(date.getTime() / 1000)}:f>`;
+}
+
 function formatRun(run) {
-  const timed = run.num_chests > 0;
-  const upgradeStr = run.num_chests > 0 ? `+${run.num_chests}` : 'Dépassé';
-  const duration = formatDuration(run.clear_time_ms);
-  const par = formatDuration(run.par_time_ms);
-  const rawDate = run.completed_at ? new Date(run.completed_at) : null;
-  const date = rawDate && !isNaN(rawDate)
-    ? rawDate.toLocaleDateString('fr-FR', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      })
-    : '—';
+  const timed = isTimed(run);
+  const upgrades = keystoneUpgrades(run);
 
   return {
+    id: runId(run),
     dungeon: run.dungeon || 'Donjon inconnu',
     level: run.mythic_level,
     timed,
-    upgrade: upgradeStr,
-    duration,
-    par,
+    upgrade: timed ? (upgrades ? `+${upgrades}` : '') : 'Dépassé',
+    duration: formatDuration(run.clear_time_ms),
+    par: formatDuration(run.par_time_ms),
     score: run.score ?? 0,
-    date,
-    url: run.url,
-    affixes: run.affixes?.map(a => a.name) || [],
+    date: formatDate(run.completed_at),
+    completedAt: run.completed_at ?? null,
+    url: run.url ?? null,
+    iconUrl: run.icon_url ?? null,
+    affixes: run.affixes?.map(a => a.name).filter(Boolean) || [],
   };
 }
 
-module.exports = { getCharacterProfile, getRecentRuns, formatRun };
+module.exports = {
+  RaiderIOError,
+  getCharacterProfile,
+  getRecentRuns,
+  runId,
+  isTimed,
+  formatRun,
+};

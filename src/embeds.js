@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { playerUrl } = require('./player');
 
 // Couleurs WoW classes (optionnel, utilisé pour le score)
 const SCORE_COLORS = {
@@ -22,7 +23,9 @@ function getScoreColor(score) {
  */
 function buildRunEmbed(player, run) {
   const timedEmoji = run.timed ? '✅' : '❌';
-  const timedLabel = run.timed ? `**DANS LES TEMPS** (${run.upgrade})` : '**HORS TEMPS**';
+  const timedLabel = run.timed
+    ? `**DANS LES TEMPS**${run.upgrade ? ` (${run.upgrade})` : ''}`
+    : '**HORS TEMPS**';
   const color = run.timed ? 0x57f287 : 0xed4245;
   const level = run.level ?? '?';
 
@@ -31,7 +34,7 @@ function buildRunEmbed(player, run) {
     .setTitle(`${timedEmoji} [+${level}] ${run.dungeon}`)
     .setAuthor({
       name: `${player.name} — ${player.realm} (${player.region.toUpperCase()})`,
-      url: `https://raider.io/characters/${player.region}/${encodeURIComponent(player.realm)}/${player.name}`,
+      url: playerUrl(player),
     })
     .addFields(
       { name: '🎯 Résultat',   value: timedLabel,                    inline: true },
@@ -46,6 +49,7 @@ function buildRunEmbed(player, run) {
 
   // URL optionnelle — Discord.js rejette null/undefined
   if (run.url) embed.setURL(run.url);
+  if (run.iconUrl) embed.setThumbnail(run.iconUrl);
 
   if (run.affixes.length > 0) {
     embed.addFields({ name: '🌀 Affixes', value: run.affixes.join(', '), inline: false });
@@ -64,7 +68,7 @@ function buildProfileEmbed(player, character, runs) {
   const embed = new EmbedBuilder()
     .setColor(color)
     .setTitle(`📊 Profil M+ — ${character.name || player.name}`)
-    .setURL(`https://raider.io/characters/${player.region}/${encodeURIComponent(player.realm)}/${player.name}`)
+    .setURL(playerUrl(player))
     .addFields(
       { name: '🌍 Région / Serveur', value: `${player.region.toUpperCase()} — ${character.realm || player.realm}`, inline: true },
       { name: '⚔️ Classe / Spec',   value: [character.active_spec_name, character.class].filter(Boolean).join(' ') || 'Inconnu', inline: true },
@@ -83,7 +87,7 @@ function buildProfileEmbed(player, character, runs) {
       const level = r.level ?? '?';
       return `${icon} [+${level}] **${r.dungeon}** — ${r.duration}`;
     }).join('\n');
-    embed.addFields({ name: '🔑 5 derniers runs', value: runsText, inline: false });
+    embed.addFields({ name: '🔑 Dernières runs', value: runsText, inline: false });
   }
 
   return embed;

@@ -1,15 +1,15 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType } = require('discord.js');
 const { getPlayers } = require('../db');
 const { buildPlayerListEmbed } = require('../embeds');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('list')
-    .setDescription('Affiche la liste des joueurs suivis'),
+    .setDescription('Affiche la liste des joueurs suivis')
+    .setContexts(InteractionContextType.Guild),
 
   async execute(interaction) {
-    const players = getPlayers();
-    const embed = buildPlayerListEmbed(players);
+    const embed = buildPlayerListEmbed(getPlayers(interaction.guildId));
     await interaction.reply({ embeds: [embed] });
   },
 };

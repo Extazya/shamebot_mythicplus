@@ -60,6 +60,7 @@ class OptionBuilder {
   addChoices()         { return this; }
   setMinValue()        { return this; }
   setMaxValue()        { return this; }
+  addChannelTypes()    { return this; }
 }
 
 class SlashCommandBuilder {
@@ -69,6 +70,7 @@ class SlashCommandBuilder {
   addIntegerOption(fn)             { fn(new OptionBuilder()); return this; }
   addChannelOption(fn)             { fn(new OptionBuilder()); return this; }
   setDefaultMemberPermissions()    { return this; }
+  setContexts()                    { return this; }
   toJSON()                         { return { name: this.name }; }
 }
 
@@ -86,7 +88,20 @@ const Routes = {
 };
 
 const GatewayIntentBits  = { Guilds: 1 };
-const PermissionFlagsBits = { ManageGuild: 32 };
+const PermissionFlagsBits = { ManageGuild: 32n, ViewChannel: 1024n, SendMessages: 2048n, EmbedLinks: 16384n };
+const InteractionContextType = { Guild: 0, BotDM: 1, PrivateChannel: 2 };
+const ChannelType = { GuildText: 0, GuildAnnouncement: 5 };
+const MessageFlags = { Ephemeral: 64 };
+const Events = {
+  ClientReady: 'clientReady',
+  GuildDelete: 'guildDelete',
+  InteractionCreate: 'interactionCreate',
+  Warn: 'warn',
+  Error: 'error',
+  ShardDisconnect: 'shardDisconnect',
+  ShardReconnecting: 'shardReconnecting',
+  ShardResume: 'shardResume',
+};
 
 class Client extends require('events') {
   constructor() {
@@ -119,5 +134,9 @@ module.exports = {
   Routes,
   GatewayIntentBits,
   PermissionFlagsBits,
+  InteractionContextType,
+  ChannelType,
+  MessageFlags,
+  Events,
   Client,
 };

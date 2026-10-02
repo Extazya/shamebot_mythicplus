@@ -1,10 +1,10 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, Events, MessageFlags } = require('discord.js');
 const fs   = require('fs');
 const path = require('path');
-const { startPolling } = require('./poller');
+const db = require('./db');
+const { startPolling, stopPolling } = require('./poller');
 
-// Validation des variables d'environnement
 const missing = ['DISCORD_TOKEN'].filter(k => !process.env[k]);
 if (missing.length > 0) {
   console.error(`❌ Variables manquantes dans .env : ${missing.join(', ')}`);
@@ -17,7 +17,6 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Charger toutes les commandes
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
 
@@ -26,34 +25,74 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 
+/**
+ * v1 stored a single channel and player list for the whole bot. Bind them to
+ * the guild owning that channel, or to the only guild if the bot is in just one.
+ */
+async function migrateLegacyConfig() {
+  const legacy = db.getLegacy();
+  if (!legacy) return;
+
+  let guildId = null;
+  if (legacy.channelId) {
+    try {
+      guildId = (await client.channels.fetch(legacy.channelId))?.guildId ?? null;
+    } catch {
+      // Channel deleted or inaccessible: fall back below
+    }
+  }
+  if (!guildId && client.guilds.cache.size === 1) guildId = client.guilds.cache.first().id;
+
+  if (guildId) {
+    db.claimLegacy(guildId);
+    console.log(`📦 Configuration v1 migrée vers le serveur ${guildId}`);
+  } else {
+    console.warn('⚠️  Configuration v1 non migrée : serveur d\'origine introuvable. Refaites /setchannel et /add.');
+  }
+}
+
 // ─── Événements Discord ──────────────────────────────────────────────────────
 
-client.once('ready', () => {
+client.once(Events.ClientReady, async () => {
   console.log(`✅ Bot connecté en tant que ${client.user.tag}`);
+  await migrateLegacyConfig();
   startPolling(client);
 });
 
-// Reconnexion automatique gérée par discord.js, mais on log les événements
-client.on('warn',  (msg) => console.warn('⚠️  Discord warn:', msg));
-client.on('error', (err) => console.error('❌ Discord error:', err.message));
+client.on(Events.GuildDelete, (guild) => {
+  console.log(`👋 Bot retiré du serveur ${guild.id}, suppression de sa configuration`);
+  db.removeGuild(guild.id);
+});
 
-client.on('shardDisconnect', (_, id) => console.warn(`🔌 Shard ${id} déconnecté`));
-client.on('shardReconnecting', (id)  => console.log(`🔄 Shard ${id} en reconnexion...`));
-client.on('shardResume',      (id)   => console.log(`✅ Shard ${id} reconnecté`));
+client.on(Events.Warn,  (msg) => console.warn('⚠️  Discord warn:', msg));
+client.on(Events.Error, (err) => console.error('❌ Discord error:', err.message));
+
+client.on(Events.ShardDisconnect,   (_, id) => console.warn(`🔌 Shard ${id} déconnecté`));
+client.on(Events.ShardReconnecting, (id)    => console.log(`🔄 Shard ${id} en reconnexion...`));
+client.on(Events.ShardResume,       (id)    => console.log(`✅ Shard ${id} reconnecté`));
 
 // ─── Gestion des interactions ─────────────────────────────────────────────────
 
-client.on('interactionCreate', async (interaction) => {
+client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
 
+  // Commands registered before setContexts() existed can still show up in DMs
+  if (!interaction.inGuild()) {
+    await interaction.reply({
+      content: '❌ Cette commande ne fonctionne que sur un serveur Discord.',
+      flags: MessageFlags.Ephemeral,
+    }).catch(() => {});
+    return;
+  }
+
   try {
     await command.execute(interaction);
   } catch (error) {
     console.error(`❌ Erreur commande /${interaction.commandName}:`, error);
-    const msg = { content: '❌ Une erreur inattendue est survenue. Réessayez.', ephemeral: true };
+    const msg = { content: '❌ Une erreur inattendue est survenue. Réessayez.', flags: MessageFlags.Ephemeral };
     try {
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(msg);
@@ -61,31 +100,43 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply(msg);
       }
     } catch {
-      // L'interaction a peut-être expiré (>3s) — on ne peut plus répondre
+      // Interaction token expired (>3s without reply or >15min after defer)
     }
   }
 });
 
-// ─── Arrêt propre ─────────────────────────────────────────────────────────────
+// ─── Arrêt ────────────────────────────────────────────────────────────────────
 
-async function shutdown(signal) {
-  console.log(`\n🛑 Signal ${signal} reçu, arrêt propre...`);
-  client.destroy();
-  process.exit(0);
+let shuttingDown = false;
+
+async function shutdown(signal, exitCode = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`\n🛑 ${signal} reçu, arrêt...`);
+  stopPolling();
+  try {
+    await client.destroy();
+  } finally {
+    process.exit(exitCode);
+  }
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT',  () => shutdown('SIGINT'));
 
-// Erreurs non catchées : logger sans crasher si possible
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️  Unhandled rejection:', reason);
 });
+// The process state is undefined after an uncaught exception: exit and let
+// the supervisor (PM2, systemd, Docker...) restart a clean instance.
 process.on('uncaughtException', (err) => {
   console.error('💥 Uncaught exception:', err);
-  // On ne quitte pas — discord.js se reconnecte tout seul
+  shutdown('uncaughtException', 1);
 });
 
 // ─── Connexion ────────────────────────────────────────────────────────────────
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN).catch((err) => {
+  console.error('❌ Connexion à Discord impossible :', err.message);
+  process.exit(1);
+});
