@@ -9,18 +9,18 @@ const DEFAULT_REGION = 'eu';
 function addCharacterOptions(builder) {
   return builder
     .addStringOption(opt =>
-      opt.setName('nom')
-        .setDescription('Nom du personnage (ex: Arthas)')
+      opt.setName('name')
+        .setDescription('Character name (Arthas, ...)')
         .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('serveur')
-        .setDescription('Nom du serveur/realm (ex: Hyjal, Tarren Mill...)')
+      opt.setName('realm')
+        .setDescription('Realm name (Hyjal, Tarren Mill, ...)')
         .setRequired(true)
     )
     .addStringOption(opt =>
       opt.setName('region')
-        .setDescription(`Région (eu, us, kr, tw) — défaut: ${DEFAULT_REGION}`)
+        .setDescription(`Region (eu, us, kr, tw), default ${DEFAULT_REGION}`)
         .setRequired(false)
         .addChoices(...REGIONS)
     );
@@ -28,8 +28,8 @@ function addCharacterOptions(builder) {
 
 function readCharacterOptions(interaction) {
   return {
-    name: interaction.options.getString('nom').trim(),
-    realm: interaction.options.getString('serveur').trim(),
+    name: interaction.options.getString('name').trim(),
+    realm: interaction.options.getString('realm').trim(),
     region: interaction.options.getString('region') || DEFAULT_REGION,
   };
 }

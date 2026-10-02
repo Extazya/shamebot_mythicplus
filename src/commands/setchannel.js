@@ -16,10 +16,10 @@ const REQUIRED_PERMISSIONS = [
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setchannel')
-    .setDescription('Définit le canal où les nouvelles runs M+ seront annoncées')
+    .setDescription('Set the channel where new M+ runs are announced')
     .addChannelOption(opt =>
-      opt.setName('canal')
-        .setDescription('Canal Discord cible (laisser vide = canal actuel)')
+      opt.setName('channel')
+        .setDescription('Target channel (empty for the current one)')
         .setRequired(false)
         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
     )
@@ -27,11 +27,11 @@ module.exports = {
     .setContexts(InteractionContextType.Guild),
 
   async execute(interaction) {
-    const channel = interaction.options.getChannel('canal') || interaction.channel;
+    const channel = interaction.options.getChannel('channel') || interaction.channel;
 
     if (!channel?.isTextBased?.()) {
       return interaction.reply({
-        content: '❌ Ce canal ne permet pas d\'envoyer des messages. Choisissez un canal textuel.',
+        content: '❌ Messages cannot be sent in this channel. Pick a text channel.',
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -40,12 +40,12 @@ module.exports = {
     const permissions = me ? channel.permissionsFor(me) : null;
     if (permissions && !permissions.has(REQUIRED_PERMISSIONS)) {
       return interaction.reply({
-        content: `❌ Il me manque des permissions dans ${channel} : **Voir le salon**, **Envoyer des messages** et **Intégrer des liens** sont requises.`,
+        content: `❌ I am missing permissions in ${channel}: **View Channel**, **Send Messages** and **Embed Links** are required.`,
         flags: MessageFlags.Ephemeral,
       });
     }
 
     setChannel(interaction.guildId, channel.id);
-    await interaction.reply(`✅ Les annonces M+ seront envoyées dans ${channel}.`);
+    await interaction.reply(`✅ M+ runs will be announced in ${channel}.`);
   },
 };

@@ -34,13 +34,13 @@ async function apiGet(urlPath) {
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch (err) {
-      if (err.name === 'TimeoutError') throw new RaiderIOError(`Timeout Raider.io (${TIMEOUT_MS / 1000}s)`);
-      throw new RaiderIOError(`Raider.io injoignable : ${err.message}`);
+      if (err.name === 'TimeoutError') throw new RaiderIOError(`Raider.io timeout (${TIMEOUT_MS / 1000}s)`);
+      throw new RaiderIOError(`Raider.io unreachable: ${err.message}`);
     }
 
     if ((res.status === 429 || res.status === 503) && attempt < MAX_RETRIES) {
       const delay = retryDelayMs(res);
-      console.warn(`⚠️  HTTP ${res.status} Raider.io, nouvel essai dans ${delay / 1000}s...`);
+      console.warn(`⚠️  Raider.io HTTP ${res.status}, retrying in ${delay / 1000}s...`);
       await sleep(delay);
       continue;
     }
@@ -50,14 +50,14 @@ async function apiGet(urlPath) {
     try {
       parsed = JSON.parse(body);
     } catch {
-      // Error pages (502, Cloudflare...) are HTML; the status is what matters then
+      // Error pages (502, Cloudflare...) are HTML, only the status matters then
     }
 
     if (!res.ok) {
-      if (res.status === 429) throw new RaiderIOError('Rate limit Raider.io — réessayez dans quelques instants', 429);
+      if (res.status === 429) throw new RaiderIOError('Raider.io rate limit reached, try again in a moment', 429);
       throw new RaiderIOError(parsed?.message || `HTTP ${res.status}`, res.status);
     }
-    if (parsed === null) throw new RaiderIOError('Réponse invalide de Raider.io', res.status);
+    if (parsed === null) throw new RaiderIOError('Invalid response from Raider.io', res.status);
     return parsed;
   }
 }
@@ -94,7 +94,7 @@ function runId(run) {
 }
 
 function keystoneUpgrades(run) {
-  // The API replaced `num_chests` with `num_keystone_upgrades`; accept both
+  // The API replaced num_chests with num_keystone_upgrades, accept both
   const upgrades = run.num_keystone_upgrades ?? run.num_chests;
   return typeof upgrades === 'number' ? upgrades : null;
 }
@@ -107,7 +107,7 @@ function isTimed(run) {
 }
 
 function formatDuration(ms) {
-  if (!ms || Number.isNaN(ms)) return '—';
+  if (!ms || Number.isNaN(ms)) return 'N/A';
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -116,7 +116,7 @@ function formatDuration(ms) {
 
 function formatDate(isoDate) {
   const date = isoDate ? new Date(isoDate) : null;
-  if (!date || Number.isNaN(date.getTime())) return '—';
+  if (!date || Number.isNaN(date.getTime())) return 'N/A';
   // Discord timestamp markup: rendered in each reader's own timezone
   return `<t:${Math.floor(date.getTime() / 1000)}:f>`;
 }
@@ -127,10 +127,10 @@ function formatRun(run) {
 
   return {
     id: runId(run),
-    dungeon: run.dungeon || 'Donjon inconnu',
+    dungeon: run.dungeon || 'Unknown dungeon',
     level: run.mythic_level,
     timed,
-    upgrade: timed ? (upgrades ? `+${upgrades}` : '') : 'Dépassé',
+    upgrade: timed ? (upgrades ? `+${upgrades}` : '') : 'Depleted',
     duration: formatDuration(run.clear_time_ms),
     par: formatDuration(run.par_time_ms),
     score: run.score ?? 0,

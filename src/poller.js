@@ -25,7 +25,7 @@ async function resolveChannels(client, channelIds, cache) {
       try {
         channel = await client.channels.fetch(id);
       } catch (err) {
-        console.error(`Canal ${id} introuvable :`, err.message);
+        console.error(`Channel ${id} not found:`, err.message);
       }
       cache.set(id, typeof channel?.send === 'function' ? channel : null);
     }
@@ -55,7 +55,7 @@ async function pollPlayer(client, { key, player, channelIds }, channelCache) {
       try {
         await channel.send({ embeds: [embed] });
       } catch (err) {
-        console.error(`Envoi impossible dans le canal ${channel.id} :`, err.message);
+        console.error(`Cannot send to channel ${channel.id}:`, err.message);
       }
     }
   }
@@ -87,7 +87,7 @@ async function checkAllPlayers(client, { delayMs = PLAYER_DELAY_MS } = {}) {
       } catch (err) {
         summary.errors++;
         const { name, realm } = target.player;
-        console.error(`Erreur lors de la récupération de ${name} (${realm}) :`, err.message);
+        console.error(`Failed to fetch ${name} (${realm}):`, err.message);
       }
       if (delayMs > 0 && i < tracked.length - 1) await sleep(delayMs);
     }
@@ -99,13 +99,13 @@ async function checkAllPlayers(client, { delayMs = PLAYER_DELAY_MS } = {}) {
 
 function startPolling(client) {
   if (timer) return;
-  console.log(`🔄 Polling démarré (intervalle : ${POLL_INTERVAL_MS / 1000}s)`);
+  console.log(`🔄 Polling started (every ${POLL_INTERVAL_MS / 1000}s)`);
 
   const loop = async () => {
     try {
       await checkAllPlayers(client);
     } catch (err) {
-      console.error('❌ Erreur pendant le poll :', err);
+      console.error('❌ Poll failed:', err);
     }
     if (timer) timer = setTimeout(loop, POLL_INTERVAL_MS);
   };

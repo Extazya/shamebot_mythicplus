@@ -5,7 +5,7 @@ const path = require('path');
 
 const missing = ['DISCORD_TOKEN', 'CLIENT_ID'].filter(k => !process.env[k]);
 if (missing.length > 0) {
-  console.error(`❌ Variables manquantes dans .env : ${missing.join(', ')}`);
+  console.error(`❌ Missing variables in .env: ${missing.join(', ')}`);
   process.exit(1);
 }
 
@@ -22,20 +22,20 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
   try {
-    // GUILD_ID registers instantly on one server; global registration can take up to an hour
+    // GUILD_ID registers instantly on one server, global registration can take up to an hour
     const guildId = process.env.GUILD_ID;
     const route = guildId
       ? Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId)
       : Routes.applicationCommands(process.env.CLIENT_ID);
 
-    console.log(`📡 Enregistrement de ${commands.length} commandes slash (${guildId ? `serveur ${guildId}` : 'global'})...`);
+    console.log(`📡 Registering ${commands.length} slash commands (${guildId ? `guild ${guildId}` : 'global'})...`);
 
     const data = await rest.put(route, { body: commands });
 
-    console.log(`✅ ${data.length} commandes enregistrées avec succès !`);
+    console.log(`✅ ${data.length} commands registered`);
     data.forEach(cmd => console.log(`  - /${cmd.name}`));
   } catch (error) {
-    console.error('❌ Erreur lors de l\'enregistrement des commandes :', error);
+    console.error('❌ Command registration failed:', error);
     process.exit(1);
   }
 })();

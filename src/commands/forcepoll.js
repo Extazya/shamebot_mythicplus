@@ -4,7 +4,7 @@ const { checkAllPlayers } = require('../poller');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('forcepoll')
-    .setDescription('Force la vérification immédiate des nouvelles runs pour tous les joueurs suivis')
+    .setDescription('Check every tracked character for new runs right now')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .setContexts(InteractionContextType.Guild),
 
@@ -13,14 +13,14 @@ module.exports = {
     const result = await checkAllPlayers(interaction.client);
 
     if (result.skipped) {
-      return interaction.editReply('⏳ Une vérification est déjà en cours, les nouvelles runs seront annoncées à la fin de celle-ci.');
+      return interaction.editReply('⏳ A check is already running, new runs will be announced when it ends.');
     }
 
     const lines = [
-      `✅ Vérification terminée : ${result.players} joueur(s) vérifié(s), ${result.announced} nouvelle(s) run(s) annoncée(s).`,
+      `✅ Check done: ${result.players} character(s) checked, ${result.announced} new run(s) announced.`,
     ];
     if (result.errors > 0) {
-      lines.push(`⚠️ ${result.errors} joueur(s) n'ont pas pu être vérifiés (voir les logs du bot).`);
+      lines.push(`⚠️ ${result.errors} character(s) could not be checked, see the bot logs.`);
     }
     await interaction.editReply(lines.join('\n'));
   },

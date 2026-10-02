@@ -8,12 +8,12 @@ module.exports = {
   data: addCharacterOptions(
     new SlashCommandBuilder()
       .setName('check')
-      .setDescription('Affiche les dernières runs M+ d\'un joueur')
+      .setDescription('Show a character\'s latest M+ runs')
       .setContexts(InteractionContextType.Guild)
   )
     .addIntegerOption(opt =>
-      opt.setName('nombre')
-        .setDescription('Nombre de runs à afficher (1-5, défaut: 5)')
+      opt.setName('count')
+        .setDescription('Number of runs to show (1 to 5, default 5)')
         .setRequired(false)
         .setMinValue(1)
         .setMaxValue(5)
@@ -23,14 +23,14 @@ module.exports = {
     await interaction.deferReply();
 
     const input = readCharacterOptions(interaction);
-    const count = interaction.options.getInteger('nombre') || 5;
+    const count = interaction.options.getInteger('count') || 5;
 
     let result;
     try {
       result = await getRecentRuns(input.region, input.realm, input.name);
     } catch (err) {
       return interaction.editReply(
-        `❌ Impossible de récupérer les données de **${input.name}** (${input.realm} — ${input.region.toUpperCase()}).\n> ${err.message}`
+        `❌ Cannot fetch **${input.name}** (${input.realm}, ${input.region.toUpperCase()}).\n> ${err.message}`
       );
     }
 
@@ -39,7 +39,7 @@ module.exports = {
 
     if (runs.length === 0) {
       return interaction.editReply(
-        `ℹ️ **${player.name}** n'a aucune run M+ enregistrée cette saison sur Raider.io.`
+        `ℹ️ **${player.name}** has no M+ run this season on Raider.io.`
       );
     }
 

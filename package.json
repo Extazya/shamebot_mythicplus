@@ -1,7 +1,7 @@
 {
   "name": "wow-mplus-discord-bot",
   "version": "2.0.0",
-  "description": "Bot Discord pour suivre les runs Mythic+ via Raider.io",
+  "description": "Discord bot announcing Mythic+ runs from Raider.io",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

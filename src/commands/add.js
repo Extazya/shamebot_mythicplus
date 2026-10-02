@@ -9,7 +9,7 @@ module.exports = {
   data: addCharacterOptions(
     new SlashCommandBuilder()
       .setName('add')
-      .setDescription('Ajoute un joueur à la liste de suivi M+')
+      .setDescription('Track a character\'s M+ runs')
       .setContexts(InteractionContextType.Guild)
   ),
 
@@ -24,17 +24,17 @@ module.exports = {
     } catch (err) {
       if (err.status === 400 || err.status === 404) {
         return interaction.editReply(
-          `❌ Personnage **${input.name}** introuvable sur **${input.realm}** (${input.region.toUpperCase()}).\n> *Vérifiez l'orthographe du nom et du serveur.*`
+          `❌ Character **${input.name}** not found on **${input.realm}** (${input.region.toUpperCase()}).\n> *Check the character and realm spelling.*`
         );
       }
-      return interaction.editReply(`❌ Raider.io est indisponible pour le moment.\n> ${err.message}`);
+      return interaction.editReply(`❌ Raider.io is unavailable right now.\n> ${err.message}`);
     }
 
     const player = playerFromProfile(character, input);
 
     if (!addPlayer(interaction.guildId, player)) {
       return interaction.editReply(
-        `⚠️ **${player.name}** (${player.realm}) est déjà dans la liste de suivi.`
+        `⚠️ **${player.name}** (${player.realm}) is already tracked.`
       );
     }
 
@@ -44,7 +44,7 @@ module.exports = {
 
     const embed = buildProfileEmbed(player, character, runs.map(formatRun));
     await interaction.editReply({
-      content: `✅ **${player.name}** ajouté au suivi M+ ! Les nouvelles runs seront annoncées automatiquement.`,
+      content: `✅ **${player.name}** is now tracked. New runs will be announced automatically.`,
       embeds: [embed],
     });
   },

@@ -5,7 +5,7 @@ const { buildPlayerListEmbed } = require('../embeds');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('list')
-    .setDescription('Affiche la liste des joueurs suivis')
+    .setDescription('List the characters tracked on this server')
     .setContexts(InteractionContextType.Guild),
 
   async execute(interaction) {

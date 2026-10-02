@@ -6,7 +6,7 @@ module.exports = {
   data: addCharacterOptions(
     new SlashCommandBuilder()
       .setName('remove')
-      .setDescription('Retire un joueur du suivi M+')
+      .setDescription('Stop tracking a character')
       .setContexts(InteractionContextType.Guild)
   ),
 
@@ -16,13 +16,13 @@ module.exports = {
 
     if (!removed) {
       return interaction.reply({
-        content: `⚠️ **${input.name}** (${input.realm}) n'est pas dans la liste de suivi.`,
+        content: `⚠️ **${input.name}** (${input.realm}) is not tracked.`,
         flags: MessageFlags.Ephemeral,
       });
     }
 
     await interaction.reply(
-      `🗑️ **${removed.name}** (${removed.realm} — ${removed.region.toUpperCase()}) retiré du suivi.`
+      `🗑️ **${removed.name}** (${removed.realm}, ${removed.region.toUpperCase()}) is no longer tracked.`
     );
   },
 };

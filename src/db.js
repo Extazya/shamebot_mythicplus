@@ -16,7 +16,7 @@ const MAX_KNOWN_RUNS = 50;
  *   runs:   { [playerKey]: [runId, ...] },   // shared by every guild tracking the player
  *   legacy: { channelId, players }           // v1 data waiting to be bound to a guild
  * }
- * A missing `runs[key]` means "never polled"; an empty array means "polled, no run yet".
+ * A missing runs[key] means "never polled", an empty array means "polled, no run yet".
  */
 
 function emptyDB() {
@@ -42,9 +42,9 @@ function backupCorrupted() {
   const backup = `${DB_PATH}.corrupt-${Date.now()}`;
   try {
     fs.renameSync(DB_PATH, backup);
-    console.error(`⚠️  db.json corrompu, sauvegardé dans ${backup} puis réinitialisé`);
+    console.error(`⚠️  db.json corrupted, moved to ${backup} and reset`);
   } catch (e) {
-    console.error('⚠️  db.json corrompu et impossible à sauvegarder :', e.message);
+    console.error('⚠️  db.json corrupted and could not be backed up:', e.message);
   }
 }
 

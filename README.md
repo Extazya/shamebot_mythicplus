@@ -1,167 +1,164 @@
 # 🗝️ WoW M+ Discord Bot
 
-Bot Discord pour suivre automatiquement les runs **Mythic+** de vos joueurs via l'API **Raider.io**.  
-Chaque nouvelle clé complétée — dans les temps ou non — est annoncée en temps réel dans un canal Discord défini.  
-Le bot peut être installé sur plusieurs serveurs Discord : chacun a son propre canal et sa propre liste de joueurs.
+Discord bot that tracks your players' **Mythic+** runs through the **Raider.io** API.  
+Every new completed key, timed or depleted, is announced in a Discord channel of your choice.  
+The bot can join several Discord servers: each one has its own channel and player list.
 
 ---
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-| Commande | Description | Permission |
+| Command | Description | Permission |
 |---|---|---|
-| `/add <nom> <serveur> [region]` | Ajoute un joueur au suivi (vérifie qu'il existe sur Raider.io) | Tout le monde |
-| `/remove <nom> <serveur> [region]` | Retire un joueur du suivi | Tout le monde |
-| `/list` | Liste les joueurs suivis sur ce serveur | Tout le monde |
-| `/check <nom> <serveur> [region] [nombre]` | Affiche les 1 à 5 dernières runs d'un joueur | Tout le monde |
-| `/setchannel [canal]` | Définit le canal d'annonces (vide = canal actuel) | Gérer le serveur |
-| `/forcepoll` | Force une vérification immédiate des nouvelles runs | Gérer le serveur |
+| `/add <name> <realm> [region]` | Track a character (checks that it exists on Raider.io) | Everyone |
+| `/remove <name> <realm> [region]` | Stop tracking a character | Everyone |
+| `/list` | List the characters tracked on this server | Everyone |
+| `/check <name> <realm> [region] [count]` | Show a character's 1 to 5 latest runs | Everyone |
+| `/setchannel [channel]` | Set the announcement channel (empty for the current one) | Manage Server |
+| `/forcepoll` | Check for new runs right now | Manage Server |
 
-Les commandes ne sont utilisables que sur un serveur (pas en message privé).
+Commands only work in a server, not in direct messages.
 
-**Polling automatique toutes les 5 minutes** — les nouvelles runs sont détectées et annoncées sans action manuelle.
+**Automatic polling every 5 minutes**: new runs are detected and announced without any manual action.
 
 ---
 
-## 🔔 Aperçu des annonces
+## 🔔 Announcements
 
-Chaque run génère un embed Discord coloré avec :
+Each run produces a colored Discord embed:
 
-- 🟢 **Vert** — clé dans les temps (avec le nombre de niveaux gagnés : +1, +2, +3)
-- 🔴 **Rouge** — clé hors temps
+- 🟢 **Green**: timed key, with the number of levels gained (+1, +2, +3)
+- 🔴 **Red**: depleted key
 
-Informations affichées : donjon (avec son icône), niveau de clé, résultat, durée réelle vs par time, score de la run, affixes actifs, date (affichée dans le fuseau horaire de chaque lecteur), lien Raider.io.
+Shown: dungeon (with its icon), key level, result, clear time vs timer, run score, affixes, date (shown in each reader's own timezone), Raider.io link.
 
 ---
 
 ## 🚀 Installation
 
-### Prérequis
+### Requirements
 
-- [Node.js](https://nodejs.org/) **v18 ou supérieur**
-- Un compte [Discord Developer Portal](https://discord.com/developers/applications)
-
----
-
-### Étape 1 — Créer l'application Discord
-
-1. Rendez-vous sur [discord.com/developers/applications](https://discord.com/developers/applications)
-2. Cliquez **New Application** → donnez-lui un nom (ex : `MPlus Tracker`)
-3. Dans **General Information** → copiez l'**Application ID** → ce sera votre `CLIENT_ID`
-4. Dans l'onglet **Bot** :
-   - Cliquez **Add Bot**
-   - Copiez le **Token** → ce sera votre `DISCORD_TOKEN`
-   - Les *Privileged Gateway Intents* ne sont **pas** nécessaires pour ce bot
-5. Dans **OAuth2 → URL Generator** :
-   - Cochez les scopes : `bot` + `applications.commands`
-   - Cochez les permissions bot : `Send Messages`, `Embed Links`, `View Channels`
-   - Copiez l'URL générée et invitez le bot sur votre serveur
+- [Node.js](https://nodejs.org/) **v18 or later**
+- A [Discord Developer Portal](https://discord.com/developers/applications) account
 
 ---
 
-### Étape 2 — Configurer le projet
+### Step 1: create the Discord application
+
+1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
+2. Click **New Application** and give it a name (`MPlus Tracker` for instance)
+3. In **General Information**, copy the **Application ID**: this is your `CLIENT_ID`
+4. In the **Bot** tab:
+   - Click **Add Bot**
+   - Copy the **Token**: this is your `DISCORD_TOKEN`
+   - *Privileged Gateway Intents* are **not** needed
+5. In **OAuth2 → URL Generator**:
+   - Scopes: `bot` and `applications.commands`
+   - Bot permissions: `Send Messages`, `Embed Links`, `View Channels`
+   - Open the generated URL to invite the bot to your server
+
+---
+
+### Step 2: configure the project
 
 ```bash
 git clone https://github.com/Extazya/shamebot_mythicplus.git
 cd shamebot_mythicplus
 
-# Installer les dépendances
 npm install
-
-# Copier le fichier d'environnement
 cp .env.example .env
 ```
 
-Ouvrez `.env` et renseignez au minimum les deux premières valeurs :
+Fill in at least the first two values of `.env`:
 
 ```env
-DISCORD_TOKEN=ton_token_discord_ici
-CLIENT_ID=ton_client_id_ici
-# Optionnel : déploiement instantané des commandes sur un seul serveur
+DISCORD_TOKEN=your_discord_token
+CLIENT_ID=your_client_id
+# Optional: instant command registration on a single server
 GUILD_ID=
-# Optionnel : emplacement de la base (défaut : data/db.json)
+# Optional: database location (default data/db.json)
 # DB_PATH=/var/lib/mplus-bot/db.json
 ```
 
-`.env` et `data/` sont exclus du dépôt par le `.gitignore` : ne les commitez jamais (le token donne le contrôle total du bot).
+`.env` and `data/` are ignored by git. Never commit them, the token gives full control over the bot.
 
 ---
 
-### Étape 3 — Enregistrer les commandes slash
+### Step 3: register the slash commands
 
 ```bash
 npm run deploy
 ```
 
-> **Note :** Le déploiement global peut prendre jusqu'à **1 heure** pour apparaître partout.  
-> Pour un déploiement **instantané** sur un seul serveur (recommandé en développement), renseignez `GUILD_ID` dans `.env`
-> (clic droit sur le serveur → *Copier l'identifiant du serveur*, mode développeur requis).
+> **Note:** global registration can take up to **1 hour** to show up everywhere.  
+> For **instant** registration on a single server (handy during development), set `GUILD_ID` in `.env`
+> (right click on the server, *Copy Server ID*, developer mode required).
 >
-> Relancez `npm run deploy` après chaque mise à jour du bot qui modifie les commandes.
+> Run `npm run deploy` again after every update that changes the commands.
 
 ---
 
-### Étape 4 — Lancer les tests (optionnel)
+### Step 4: run the tests (optional)
 
 ```bash
 npm test
 ```
 
-Les tests n'utilisent ni le réseau ni Discord, et travaillent sur une base temporaire : ils ne touchent pas à `data/db.json`.
+Tests use neither the network nor Discord, and work on a temporary database: `data/db.json` is left untouched.
 
 ---
 
-### Étape 5 — Démarrer le bot
+### Step 5: start the bot
 
 ```bash
 npm start
 ```
 
-En développement avec redémarrage automatique :
+During development, with automatic restart:
 ```bash
 npm run dev
 ```
 
 ---
 
-## ⚙️ Configuration sur Discord
+## ⚙️ Discord setup
 
-Une fois le bot démarré et connecté :
+Once the bot is up and connected:
 
-**1. Définir le canal d'annonces** (obligatoire avant que les notifications fonctionnent) :
+**1. Set the announcement channel** (required before any announcement):
 ```
 /setchannel #mythic-plus
 ```
 
-**2. Ajouter des joueurs à suivre** :
+**2. Add characters to track**:
 ```
 /add Arthas Archimonde eu
 /add Thrall Hyjal eu
 /add SomePlayer Illidan us
 ```
 
-Le bot vérifie que chaque personnage existe sur Raider.io avant de l'ajouter, enregistre l'orthographe officielle du nom et du serveur (`tarren mill`, `Tarren Mill` et `tarren-mill` désignent le même serveur), et initialise ses runs connues pour ne pas notifier les anciennes.
+The bot checks that each character exists on Raider.io before adding it, stores the official spelling of the name and realm (`tarren mill`, `Tarren Mill` and `tarren-mill` are the same realm), and records the current runs so old ones are not announced.
 
-**3. Vérifier les annonces manuellement** (optionnel) :
+**3. Trigger a check by hand** (optional):
 ```
 /forcepoll
 ```
 
 ---
 
-## 📁 Structure du projet
+## 📁 Project layout
 
 ```
 shamebot_mythicplus/
 ├── src/
-│   ├── index.js            # Point d'entrée : connexion Discord, chargement commandes, événements, migration v1
-│   ├── db.js               # Persistance JSON atomique, par serveur (joueurs, canal) + IDs de runs vus
-│   ├── player.js           # Identité d'un personnage : slug du serveur, clé unique, lien Raider.io
-│   ├── options.js          # Options communes nom / serveur / région des commandes
-│   ├── raiderio.js         # Client API Raider.io (fetch, timeout 10s, retry sur 429/503) + formatage des runs
-│   ├── ratelimiter.js      # Token bucket sérialisé : 60 req/min max vers Raider.io
-│   ├── embeds.js           # Construction des embeds Discord (run, profil, liste)
-│   ├── poller.js           # Boucle de polling toutes les 5 min avec guard anti-concurrence
+│   ├── index.js            # Entry point: Discord login, command loading, events, v1 migration
+│   ├── db.js               # Atomic JSON storage, per guild (players, channel) + seen run ids
+│   ├── player.js           # Character identity: realm slug, unique key, Raider.io link
+│   ├── options.js          # Shared name / realm / region command options
+│   ├── raiderio.js         # Raider.io client (fetch, 10s timeout, retry on 429/503) + run formatting
+│   ├── ratelimiter.js      # Serialized token bucket: at most 60 req/min to Raider.io
+│   ├── embeds.js           # Discord embed builders (run, profile, list)
+│   ├── poller.js           # 5 minute polling loop with a concurrency guard
 │   └── commands/
 │       ├── add.js          # /add
 │       ├── remove.js       # /remove
@@ -170,11 +167,11 @@ shamebot_mythicplus/
 │       ├── setchannel.js   # /setchannel
 │       └── forcepoll.js    # /forcepoll
 ├── tests/
-│   ├── mock-discord.js     # Mock discord.js pour les tests (sans dépendance réseau)
-│   └── run.js              # Suite de tests unitaires et d'intégration (npm test)
+│   ├── mock-discord.js     # discord.js mock (no network)
+│   └── run.js              # Unit and integration tests (npm test)
 ├── data/
-│   └── db.json             # Créé automatiquement — ignoré par git
-├── deploy-commands.js      # Script d'enregistrement des commandes slash
+│   └── db.json             # Created automatically, ignored by git
+├── deploy-commands.js      # Slash command registration script
 ├── package.json
 ├── .env.example
 ├── .gitignore
@@ -183,90 +180,90 @@ shamebot_mythicplus/
 
 ---
 
-## 🛠️ Personnalisation
+## 🛠️ Customization
 
-### Changer l'intervalle de polling
+### Polling interval
 
-Dans `src/poller.js` :
+In `src/poller.js`:
 ```js
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — à ajuster selon vos besoins
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
 ```
 
-> ⚠️ En dessous de 2 minutes, vous risquez d'atteindre les limites de l'API Raider.io (les données côté Raider.io ne se rafraîchissent de toute façon que toutes les ~15 minutes).
+> ⚠️ Below 2 minutes you may hit the Raider.io API limits, and Raider.io only refreshes its data about every 15 minutes anyway.
 
-### Changer la limite de rate limiting
+### Rate limit
 
-Dans `src/ratelimiter.js` :
+In `src/ratelimiter.js`:
 ```js
-const MAX_REQUESTS = 60; // requêtes max par minute vers Raider.io
+const MAX_REQUESTS = 60; // per minute
 ```
 
 ---
 
-## 🖥️ Hébergement 24/7
+## 🖥️ 24/7 hosting
 
-Pour que le bot tourne en permanence, utilisez l'une de ces solutions :
+To keep the bot running all the time, use one of these:
 
-| Solution | Coût | Facilité |
+| Option | Cost | Ease |
 |---|---|---|
-| [Railway](https://railway.app) | Gratuit (limité) / payant | ⭐⭐⭐ |
-| [Render](https://render.com) | Gratuit (limité) / payant | ⭐⭐⭐ |
-| [fly.io](https://fly.io) | Gratuit (limité) / payant | ⭐⭐ |
-| VPS (OVH, Hetzner…) | ~4€/mois | ⭐ |
+| [Railway](https://railway.app) | Free (limited) / paid | ⭐⭐⭐ |
+| [Render](https://render.com) | Free (limited) / paid | ⭐⭐⭐ |
+| [fly.io](https://fly.io) | Free (limited) / paid | ⭐⭐ |
+| VPS (OVH, Hetzner...) | about 4€/month | ⭐ |
 
-**Avec PM2 sur un VPS :**
+**With PM2 on a VPS:**
 ```bash
 npm install -g pm2
 pm2 start src/index.js --name "mplus-bot"
-pm2 save       # Sauvegarde pour redémarrage auto
-pm2 startup    # Active le démarrage au boot
+pm2 save       # remember the process list
+pm2 startup    # start on boot
 ```
 
 ---
 
-## ⚠️ Limites et comportements à connaître
+## ⚠️ Limits and behaviour
 
-### API Raider.io
-- **Gratuite, sans clé API requise**
-- Les données côté Raider.io se rafraîchissent toutes les **~15 minutes** — un polling plus fréquent n'apportera rien
-- Le bot se limite à **60 requêtes/minute** (rate limiter intégré, nouveaux essais compris) et réessaie automatiquement sur les erreurs HTTP 429 et 503
-- Un personnage suivi par plusieurs serveurs Discord n'est interrogé qu'une fois par cycle
+### Raider.io API
+- **Free, no API key required**
+- Raider.io refreshes its data about every **15 minutes**, polling more often brings nothing
+- The bot stays under **60 requests/minute** (built-in rate limiter, retries included) and retries automatically on HTTP 429 and 503
+- A character tracked by several servers is fetched only once per cycle
 
-### Première utilisation
-Lors du premier `/add`, le bot enregistre les runs actuelles du joueur **sans les annoncer**. Seules les runs **postérieures** à l'ajout seront notifiées — y compris la toute première run d'un personnage qui n'en avait encore aucune.
+### First use
+On `/add`, the bot records the character's current runs **without announcing them**. Only runs completed **after** the add are announced, including the very first run of a character that had none yet.
 
-### Stockage
-Les données sont stockées dans `data/db.json` (modifiable via `DB_PATH`). Ce fichier est créé automatiquement. **Ne le supprimez pas** : vous perdriez les canaux et listes de joueurs de tous les serveurs.
+### Storage
+Data lives in `data/db.json` (configurable with `DB_PATH`). The file is created automatically. **Do not delete it**: every server would lose its channel and player list.
 
-Si le fichier est corrompu, il est renommé en `db.json.corrupt-<timestamp>` (pour pouvoir le récupérer à la main) et une base vide est recréée.
+A corrupted file is renamed to `db.json.corrupt-<timestamp>` (so it can be recovered by hand) and an empty database is created.
 
-Quand le bot quitte un serveur Discord, la configuration de ce serveur est supprimée.
+When the bot leaves a Discord server, that server's configuration is deleted.
 
-### Mise à jour depuis la v1
-La v1 stockait un seul canal et une seule liste de joueurs pour tout le bot. Au premier démarrage de la v2, ces données sont automatiquement rattachées au serveur qui possède l'ancien canal d'annonces (ou au seul serveur du bot s'il n'est que sur un). Les runs déjà vues sont conservées : rien n'est ré-annoncé. Pensez à relancer `npm run deploy`.
+### Upgrading from v1
+v1 stored a single channel and player list for the whole bot. On the first v2 start, that data is bound to the server owning the old announcement channel (or to the bot's only server if it is in just one). Already seen runs are kept, nothing is announced again. Remember to run `npm run deploy` again.
 
-### Reconnexion
-Discord.js gère la reconnexion automatiquement en cas de coupure réseau. Les événements de connexion/déconnexion sont loggués dans la console.
+### Reconnection
+discord.js reconnects automatically after a network outage. Connection and disconnection events are logged.
 
-En cas d'erreur non rattrapée, le bot s'arrête volontairement (code 1) plutôt que de continuer dans un état incertain : faites-le tourner sous un superviseur (PM2, systemd, Docker `restart: unless-stopped`…) pour qu'il redémarre automatiquement.
+On an uncaught error the bot exits on purpose (code 1) instead of running in an unknown state: run it under a supervisor (PM2, systemd, Docker `restart: unless-stopped`...) so it restarts automatically.
 
 ---
 
-## 🐛 Dépannage
+## 🐛 Troubleshooting
 
-| Problème | Cause probable | Solution |
+| Problem | Likely cause | Fix |
 |---|---|---|
-| Les commandes n'apparaissent pas | Déploiement global pas encore propagé | Attendre 1h, ou renseigner `GUILD_ID` puis `npm run deploy` |
-| `❌ Variables manquantes dans .env` | `.env` absent ou mal rempli | Vérifier `DISCORD_TOKEN` et `CLIENT_ID` |
-| `Canal … introuvable` dans les logs | Le canal a été supprimé ou le bot n'y a plus accès | Relancer `/setchannel` |
-| `Envoi impossible dans le canal` dans les logs | Permissions retirées au bot après `/setchannel` | Rendre au bot *Voir le salon*, *Envoyer des messages* et *Intégrer des liens* |
-| Un joueur n'est pas trouvé | Nom ou serveur mal orthographié, ou personnage non indexé | Vérifier sur [raider.io](https://raider.io) que le profil existe |
-| Les runs ne s'annoncent pas | `/setchannel` non configuré sur ce serveur, ou bot sans permission | Vérifier `/setchannel` et les permissions du bot dans le canal |
-| Plus aucun joueur ni canal configuré | `data/db.json` supprimé, ou corrompu puis réinitialisé | Restaurer depuis `db.json.corrupt-*` si présent, sinon refaire `/setchannel` et `/add` |
-| `Configuration v1 non migrée` au démarrage | Ancien canal supprimé et bot présent sur plusieurs serveurs | Refaire `/setchannel` et `/add` sur le bon serveur |
+| Commands do not show up | Global registration not propagated yet | Wait 1h, or set `GUILD_ID` then `npm run deploy` |
+| `❌ Missing variables in .env` | `.env` missing or incomplete | Check `DISCORD_TOKEN` and `CLIENT_ID` |
+| `Channel ... not found` in the logs | Channel deleted or no longer visible to the bot | Run `/setchannel` again |
+| `Cannot send to channel` in the logs | Bot permissions removed after `/setchannel` | Give the bot *View Channel*, *Send Messages* and *Embed Links* back |
+| A character is not found | Misspelled name or realm, or character not indexed | Check that the profile exists on [raider.io](https://raider.io) |
+| Runs are not announced | `/setchannel` not set on this server, or missing permissions | Check `/setchannel` and the bot permissions in the channel |
+| No player or channel configured anymore | `data/db.json` deleted, or corrupted then reset | Restore from `db.json.corrupt-*` if present, otherwise redo `/setchannel` and `/add` |
+| `v1 configuration not migrated` at startup | Old channel deleted and bot in several servers | Redo `/setchannel` and `/add` on the right server |
 
 ---
 
-## 📝 Licence
+## 📝 License
 
-MIT — Libre d'utilisation et de modification.
+MIT, free to use and modify.
