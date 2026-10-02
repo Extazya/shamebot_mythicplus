@@ -1,16 +1,16 @@
 {
   "name": "wow-mplus-discord-bot",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Bot Discord pour suivre les runs Mythic+ via Raider.io",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "deploy": "node deploy-commands.js",
     "dev": "node --watch src/index.js",
-    "test": "node --experimental-vm-modules tests/run.js"
+    "test": "node tests/run.js"
   },
   "dependencies": {
-    "discord.js": "^14.14.1",
+    "discord.js": "^14.27.0",
     "dotenv": "^16.4.5"
   },
   "engines": {
